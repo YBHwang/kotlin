@@ -117,7 +117,7 @@ open class IncrementalJsCache(
             for (path in translationResults.keys()) {
                 val file = File(path)
                 if (file !in dirtySources) {
-                    put(file, translationResults[file]!!)
+                    put(file, translationResults[file] ?: error("$file"))
                 }
             }
         }
@@ -160,12 +160,18 @@ private class TranslationResultMap(
         "Metadata: ${value.metadata.md5()}, Binary AST: ${value.binaryAst.md5()}, InlineData: ${value.inlineData.md5()}"
 
     fun put(sourceFile: File, newMetadata: ByteArray, newBinaryAst: ByteArray, newInlineData: ByteArray) {
-        storage[pathConverter.toPath(sourceFile)] =
-            TranslationResultValue(metadata = newMetadata, binaryAst = newBinaryAst, inlineData = newInlineData)
+        val path = pathConverter.toPath(sourceFile)
+        println("put $path")
+        storage[path] = TranslationResultValue(metadata = newMetadata, binaryAst = newBinaryAst, inlineData = newInlineData)
     }
 
-    operator fun get(sourceFile: File): TranslationResultValue? =
-        storage[pathConverter.toPath(sourceFile)]
+    operator fun get(sourceFile: File): TranslationResultValue? {
+        val path = pathConverter.toPath(sourceFile)
+        val value = storage[path]
+        println("get $path")
+
+        return value
+    }
 
     fun keys(): Collection<String> =
         storage.keys
@@ -179,6 +185,8 @@ private class TranslationResultMap(
             changesCollector.collectProtoChanges(oldData = protoData, newData = null)
         }
         storage.remove(path)
+        println("remove $path")
+
     }
 }
 

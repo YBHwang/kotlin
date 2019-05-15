@@ -36,16 +36,33 @@ import java.io.File
 
 class KotlinJpsBuildTestIncremental : KotlinJpsBuildTest() {
     var isICEnabledBackup: Boolean = false
+    var isICEnabledForJsBackup: Boolean = false
 
     override fun setUp() {
         super.setUp()
         isICEnabledBackup = IncrementalCompilation.isEnabledForJvm()
         IncrementalCompilation.setIsEnabledForJvm(true)
+
+        isICEnabledForJsBackup = IncrementalCompilation.isEnabledForJs()
+        IncrementalCompilation.setIsEnabledForJs(true)
     }
 
     override fun tearDown() {
         IncrementalCompilation.setIsEnabledForJvm(isICEnabledBackup)
+        IncrementalCompilation.setIsEnabledForJs(isICEnabledForJsBackup)
+
         super.tearDown()
+    }
+
+    fun testKotlinJavaScriptChangePackage() {
+        initProject(LibraryDependency.JS_STDLIB)
+        buildAllModules().assertSuccessful()
+
+        val class2Kt = File(workDir, "src/Class2.kt")
+        JpsBuildTestCase.change(class2Kt.path, class2Kt.readText().replace("package2", "package1"))
+        buildAllModules().assertSuccessful()
+
+        //checkOutputFilesList(File(workDir, "target"))
     }
 
     fun testRelocatableCaches() {
