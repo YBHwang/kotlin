@@ -15,13 +15,20 @@ import org.jetbrains.kotlin.gradle.tasks.AggregateTestReport
 import org.jetbrains.kotlin.gradle.tasks.locateOrRegisterTask
 
 private val Project.allTestsTask: TaskHolder<AggregateTestReport>
-    get() = locateOrRegisterTask("allTests") { aggregate ->
+    get() = getAggregatedTestTask(
+        name = "allTests",
+        description = "Runs the tests for all targets and create aggregated report",
+        reportName = "all"
+    )
+
+internal fun Project.getAggregatedTestTask(name: String, description: String, reportName: String): TaskHolder<AggregateTestReport> {
+    return locateOrRegisterTask(name) { aggregate ->
         tasks.maybeCreate(LifecycleBasePlugin.CHECK_TASK_NAME).dependsOn(aggregate)
 
-        aggregate.description = "Runs the tests for all targets and create aggregated report"
+        aggregate.description = description
         aggregate.group = JavaBasePlugin.VERIFICATION_GROUP
 
-        aggregate.reports.configureConventions(project, "all")
+        aggregate.reports.configureConventions(project, reportName)
 
         aggregate.onlyIf {
             aggregate.testTasks.size > 1
@@ -31,6 +38,7 @@ private val Project.allTestsTask: TaskHolder<AggregateTestReport>
             aggregate.extensions.extraProperties.set("idea.internal.test", true)
         }
     }
+}
 
 private fun cleanTaskName(taskName: String): String {
     check(taskName.isNotEmpty())
@@ -45,8 +53,14 @@ private val Project.cleanAllTestTask: Task
 
 @Suppress("UnstableApiUsage")
 internal fun registerTestTask(taskHolder: TaskHolder<AbstractTestTask>) {
+    registerTestTaskInAggregate(taskHolder, taskHolder.project.allTestsTask.doGetTask())
+}
+
+internal fun registerTestTaskInAggregate(
+    taskHolder: TaskHolder<AbstractTestTask>,
+    allTests: AggregateTestReport
+) {
     val project = taskHolder.project
-    val allTests = project.allTestsTask.doGetTask()
 
     project.tasks.getByName(LifecycleBasePlugin.CHECK_TASK_NAME).dependsOn(taskHolder.name)
     project.cleanAllTestTask.dependsOn(cleanTaskName(taskHolder.name))
@@ -63,7 +77,11 @@ internal fun registerTestTask(taskHolder: TaskHolder<AbstractTestTask>) {
                 // - enable [checkFailedTests] on [allTestsTask]
 
                 task.ignoreFailures = true
+
+                @Suppress("UnstableApiUsage")
                 task.reports.html.isEnabled = false
+
+                @Suppress("UnstableApiUsage")
                 task.reports.junitXml.isEnabled = false
 
                 allTests.checkFailedTests = true
